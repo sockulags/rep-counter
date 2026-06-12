@@ -3,10 +3,16 @@ import {
   addRepEntry,
   buildInitialState,
   deleteRepEntry,
+  getCurrentStreak,
   getDailyTotals,
   getDateKey,
+  getExerciseStats,
   getExerciseTotals,
+  getLongestStreak,
+  getMilestones,
   getTodayTotals,
+  moveExercise,
+  sortExercises,
   updateRepEntry,
   validateReps,
 } from './domain'
@@ -76,7 +82,12 @@ describe('rep counter domain', () => {
   })
 
   it('adds, updates, and deletes entries immutably', () => {
-    const state: AppState = { version: 1, exercises: [], entries: [] }
+    const state: AppState = {
+      version: 2,
+      exercises: [],
+      entries: [],
+      settings: { theme: 'system' },
+    }
     const added = addRepEntry(state, 'pushups', 12, '2026-06-12T10:00:00.000+02:00')
     const entryId = added.entries[0]?.id
 
@@ -101,5 +112,54 @@ describe('rep counter domain', () => {
       { dateKey: '2026-06-11', total: 99 },
       { dateKey: '2026-06-12', total: 45 },
     ])
+  })
+
+  it('fills empty days with zero totals', () => {
+    const dailyTotals = getDailyTotals(entries, '2026-06-10', '2026-06-13')
+
+    expect(dailyTotals).toEqual([
+      { dateKey: '2026-06-10', total: 0 },
+      { dateKey: '2026-06-11', total: 99 },
+      { dateKey: '2026-06-12', total: 45 },
+      { dateKey: '2026-06-13', total: 0 },
+    ])
+  })
+
+  it('computes current and longest streaks', () => {
+    expect(getCurrentStreak(entries, '2026-06-12')).toBe(2)
+    expect(getCurrentStreak(entries, '2026-06-13')).toBe(2)
+    expect(getCurrentStreak(entries, '2026-06-15')).toBe(0)
+    expect(getLongestStreak(entries)).toBe(2)
+    expect(getLongestStreak([])).toBe(0)
+  })
+
+  it('computes per-exercise stats and records', () => {
+    const stats = getExerciseStats(entries, 'pushups')
+
+    expect(stats.allTime).toBe(124)
+    expect(stats.bestSet).toBe(99)
+    expect(stats.bestDay).toEqual({ dateKey: '2026-06-11', total: 99 })
+    expect(stats.count).toBe(3)
+  })
+
+  it('marks milestones as achieved from history', () => {
+    const milestones = getMilestones(entries)
+    const byId = new Map(milestones.map((milestone) => [milestone.id, milestone.achieved]))
+
+    expect(byId.get('total-100')).toBe(true)
+    expect(byId.get('total-1000')).toBe(false)
+    expect(byId.get('day-100')).toBe(false)
+  })
+
+  it('reorders exercises with moveExercise', () => {
+    const state = buildInitialState('2026-06-12T10:00:00.000+02:00')
+    const ordered = sortExercises(state.exercises)
+    const second = ordered[1]
+
+    const moved = moveExercise(state, second.id, -1)
+    expect(sortExercises(moved.exercises)[0].id).toBe(second.id)
+
+    const unchanged = moveExercise(state, ordered[0].id, -1)
+    expect(unchanged).toBe(state)
   })
 })
