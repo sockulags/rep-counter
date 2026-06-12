@@ -1,5 +1,5 @@
 const CACHE_NAME = 'rep-counter-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg']
+const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './app-icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
@@ -30,7 +30,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
           return response
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match('./index.html'))
     }),
   )
 })

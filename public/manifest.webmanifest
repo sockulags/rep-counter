@@ -2,14 +2,15 @@
   "name": "Rep Counter",
   "short_name": "Reps",
   "description": "Snabb PWA för att logga repetitioner per övning.",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f8f6",
   "theme_color": "#f7f8f6",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/app-icon.svg",
+      "src": "./app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
