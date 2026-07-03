@@ -35,3 +35,7 @@ npm run build
 ## Deployment
 
 The site deploys to GitHub Pages through `.github/workflows/pages.yml` on pushes to `main`.
+
+## License
+
+[MIT](LICENSE)
