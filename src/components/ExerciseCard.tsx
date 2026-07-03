@@ -33,6 +33,7 @@ export function ExerciseCard({
   const goal = exercise.dailyGoal
   const goalMet = goal !== undefined && todayTotal >= goal
   const logDateKey = showDate ? dateKey : todayKey
+  const errorId = `${exercise.id}-input-error`
 
   function log(value: number) {
     setError('')
@@ -108,6 +109,8 @@ export function ExerciseCard({
           placeholder={exercise.unit === 'seconds' ? 'Sekunder' : 'Antal'}
           type="number"
           min="1"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           value={input}
           onChange={(event) => {
             setInput(event.target.value)
@@ -145,7 +148,11 @@ export function ExerciseCard({
         ) : null}
       </div>
 
-      {error ? <p className="form-message">{error}</p> : null}
+      {error ? (
+        <p id={errorId} className="form-message" role="alert">
+          {error}
+        </p>
+      ) : null}
     </article>
   )
 }
