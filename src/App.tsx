@@ -25,7 +25,7 @@ import {
 } from './domain'
 import { useAppState } from './hooks/useAppState'
 import { useToday } from './hooks/useToday'
-import { clearStoredState } from './storage'
+import { clearStoredState, serializeState } from './storage'
 import type { AppState, Exercise, ThemeChoice, ViewId } from './types'
 
 const snackbarDurationMs = 4500
@@ -122,6 +122,16 @@ function App() {
     setView(nextView)
   }
 
+  function exportData() {
+    const blob = new Blob([serializeState(state)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `rep-counter-${todayKey}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   function resetAllData() {
     clearStoredState()
     setSnackbar(null)
@@ -192,6 +202,8 @@ function App() {
             onThemeChange={(nextTheme: ThemeChoice) =>
               persist({ ...state, settings: { ...state.settings, theme: nextTheme } })
             }
+            onExportData={exportData}
+            onImportData={(nextState) => persistWithUndo(nextState, 'Data importerad')}
             onResetAllData={resetAllData}
           />
         ) : null}

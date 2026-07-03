@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
 describe('Rep Counter app', () => {
@@ -109,5 +109,80 @@ describe('Rep Counter app', () => {
 
     expect(screen.getByText('Inga aktiva övningar')).toBeInTheDocument()
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('exports data and restores it through import', async () => {
+    const user = userEvent.setup()
+    const blobs: Blob[] = []
+    const originalCreateObjectURL = URL.createObjectURL
+    const originalRevokeObjectURL = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob)
+      return 'blob:rep-counter-export'
+    })
+    URL.revokeObjectURL = vi.fn()
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {})
+
+    try {
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: 'Push-ups' }))
+      await user.click(screen.getByRole('button', { name: '+10' }))
+      await user.click(screen.getByRole('button', { name: 'Inställningar' }))
+      await user.click(screen.getByRole('button', { name: 'Exportera data' }))
+
+      expect(anchorClick).toHaveBeenCalledTimes(1)
+      expect(blobs).toHaveLength(1)
+      const exported = await blobs[0].text()
+
+      await user.click(screen.getByRole('button', { name: 'Radera all data' }))
+      await user.click(screen.getByRole('button', { name: 'Ja, radera allt' }))
+      expect(screen.getByText('Inga aktiva övningar')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Inställningar' }))
+      const file = new File([exported], 'rep-counter.json', { type: 'application/json' })
+      fireEvent.change(screen.getByLabelText('Importfil'), { target: { files: [file] } })
+
+      await user.click(await screen.findByRole('button', { name: 'Ja, ersätt allt' }))
+      expect(screen.getByText('Data importerad')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Idag' }))
+      expect(screen.getByRole('heading', { name: 'Push-ups' })).toBeInTheDocument()
+      expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(2)
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL
+      URL.revokeObjectURL = originalRevokeObjectURL
+      anchorClick.mockRestore()
+    }
+  })
+
+  it('rejects an import file that fails validation', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Push-ups' }))
+    await user.click(screen.getByRole('button', { name: '+10' }))
+    await user.click(screen.getByRole('button', { name: 'Inställningar' }))
+
+    const fileInput = screen.getByLabelText('Importfil')
+    const invalidShape = new File(['{"version":99}'], 'broken.json', {
+      type: 'application/json',
+    })
+    fireEvent.change(fileInput, { target: { files: [invalidShape] } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Filen innehåller ingen giltig Rep Counter-data.',
+    )
+    expect(screen.queryByRole('button', { name: 'Ja, ersätt allt' })).not.toBeInTheDocument()
+
+    const notJson = new File(['{not json'], 'broken.txt', { type: 'application/json' })
+    fireEvent.change(fileInput, { target: { files: [notJson] } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Filen kunde inte läsas som JSON.')
+
+    await user.click(screen.getByRole('button', { name: 'Idag' }))
+    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(2)
   })
 })
