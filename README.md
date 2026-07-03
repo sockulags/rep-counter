@@ -2,6 +2,12 @@
 
 Mobile-first PWA for logging daily exercise repetitions with local storage only.
 
+**Live demo:** [sockulags.github.io/rep-counter](https://sockulags.github.io/rep-counter/)
+
+| Today | Overview | Exercises |
+| --- | --- | --- |
+| ![Today view with quick-log buttons and daily goals](docs/screenshots/today.png) | ![Overview with activity heatmap and per-day totals](docs/screenshots/overview.png) | ![Exercise management with goals and reordering](docs/screenshots/exercises.png) |
+
 ## Features
 
 - Fast daily rep logging with quick buttons and manual input.
