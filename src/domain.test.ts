@@ -55,8 +55,9 @@ describe('rep counter domain', () => {
   })
 
   it('uses a local date key for day boundaries', () => {
-    expect(getDateKey('2026-06-12T23:59:59.000+02:00')).toBe('2026-06-12')
-    expect(getDateKey('2026-06-13T00:00:00.000+02:00')).toBe('2026-06-13')
+    // Offset-less timestamps parse as local time, so this holds in any timezone.
+    expect(getDateKey('2026-06-12T23:59:59')).toBe('2026-06-12')
+    expect(getDateKey('2026-06-13T00:00:00')).toBe('2026-06-13')
   })
 
   it('sums today per exercise and overall without overwriting history', () => {
