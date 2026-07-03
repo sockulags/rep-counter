@@ -1,5 +1,7 @@
 # Rep Counter
 
+[![CI](https://github.com/sockulags/rep-counter/actions/workflows/ci.yml/badge.svg)](https://github.com/sockulags/rep-counter/actions/workflows/ci.yml)
+
 Mobile-first PWA for logging daily exercise repetitions with local storage only.
 
 **Live demo:** [sockulags.github.io/rep-counter](https://sockulags.github.io/rep-counter/)
