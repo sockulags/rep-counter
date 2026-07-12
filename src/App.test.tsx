@@ -7,6 +7,7 @@ import App from './App'
 describe('Rep Counter app', () => {
   beforeEach(() => {
     localStorage.clear()
+    window.history.replaceState(null, '', '/')
   })
 
   it('activates an exercise and logs reps from today', async () => {
@@ -60,6 +61,57 @@ describe('Rep Counter app', () => {
 
     expect(screen.getByText('Registrering raderad')).toBeInTheDocument()
     expect(screen.getByText('Inga registreringar matchar filtret.')).toBeInTheDocument()
+  })
+
+  it('pushes a history entry per view and reverts on browser back', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByText('Inga aktiva övningar')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Inställningar' }))
+    expect(screen.getByRole('button', { name: 'Exportera data' })).toBeInTheDocument()
+    expect(new URLSearchParams(window.location.search).get('view')).toBe('settings')
+
+    // Simulate the Android hardware back button stepping to the previous entry.
+    fireEvent(
+      window,
+      new PopStateEvent('popstate', { state: { view: 'today', detailExerciseId: null } }),
+    )
+
+    expect(screen.getByText('Inga aktiva övningar')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Exportera data' })).not.toBeInTheDocument()
+  })
+
+  it('opens directly on the view named in the URL on reload', () => {
+    window.history.replaceState(null, '', '/?view=settings')
+    render(<App />)
+
+    expect(screen.getByRole('button', { name: 'Exportera data' })).toBeInTheDocument()
+    expect(screen.queryByText('Inga aktiva övningar')).not.toBeInTheDocument()
+  })
+
+  it('steps back out of an exercise detail before leaving the overview', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Push-ups' }))
+    await user.click(screen.getByRole('button', { name: '+10' }))
+    await user.click(screen.getByRole('button', { name: 'Översikt' }))
+
+    await user.click(screen.getByRole('button', { name: /Push-ups/ }))
+    expect(screen.getByRole('heading', { name: 'Push-ups' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Översikt' })).not.toBeInTheDocument()
+    expect(new URLSearchParams(window.location.search).get('exercise')).not.toBeNull()
+
+    // Popping the detail entry should restore the overview, not exit the app.
+    fireEvent(
+      window,
+      new PopStateEvent('popstate', { state: { view: 'overview', detailExerciseId: null } }),
+    )
+
+    expect(screen.queryByRole('heading', { name: 'Push-ups' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Översikt' })).toBeInTheDocument()
   })
 
   it('shows a validation error for invalid manual input', async () => {

@@ -35,9 +35,33 @@ const themeColors: Record<'light' | 'dark', string> = {
   dark: '#101311',
 }
 
-function getInitialView(): ViewId {
-  const requested = new URLSearchParams(window.location.search).get('view')
-  return viewIds.includes(requested as ViewId) ? (requested as ViewId) : 'today'
+type ViewLocation = {
+  view: ViewId
+  detailExerciseId: string | null
+}
+
+function readViewLocation(): ViewLocation {
+  const params = new URLSearchParams(window.location.search)
+  const requested = params.get('view')
+  const view = viewIds.includes(requested as ViewId) ? (requested as ViewId) : 'today'
+  const exercise = params.get('exercise')
+  return { view, detailExerciseId: view === 'overview' ? exercise : null }
+}
+
+function viewLocationToUrl({ view, detailExerciseId }: ViewLocation): string {
+  const params = new URLSearchParams()
+  if (view !== 'today') params.set('view', view)
+  if (detailExerciseId) params.set('exercise', detailExerciseId)
+  const query = params.toString()
+  return `${window.location.pathname}${query ? `?${query}` : ''}`
+}
+
+function pushViewLocation(next: ViewLocation) {
+  window.history.pushState(next, '', viewLocationToUrl(next))
+}
+
+function replaceViewLocation(next: ViewLocation) {
+  window.history.replaceState(next, '', viewLocationToUrl(next))
 }
 
 type SnackbarState = {
@@ -47,8 +71,10 @@ type SnackbarState = {
 
 function App() {
   const [state, setState] = useAppState()
-  const [view, setView] = useState<ViewId>(getInitialView)
-  const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null)
+  const [view, setView] = useState<ViewId>(() => readViewLocation().view)
+  const [detailExerciseId, setDetailExerciseId] = useState<string | null>(
+    () => readViewLocation().detailExerciseId,
+  )
   const [snackbar, setSnackbar] = useState<SnackbarState>(null)
   const today = useToday()
   const submitLock = useRef(false)
@@ -64,6 +90,24 @@ function App() {
     const timer = window.setTimeout(() => setSnackbar(null), snackbarDurationMs)
     return () => window.clearTimeout(timer)
   }, [snackbar])
+
+  useEffect(() => {
+    // Attach a state object to the entry the app loaded on, so back navigation
+    // that lands here can restore the correct view via popstate.
+    replaceViewLocation({ view, detailExerciseId })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    function handlePopState(event: PopStateEvent) {
+      const next = (event.state as ViewLocation | null) ?? readViewLocation()
+      setView(next.view)
+      setDetailExerciseId(next.detailExerciseId ?? null)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const activeExercises = useMemo(
     () => sortExercises(state.exercises.filter((exercise) => exercise.isActive)),
@@ -118,8 +162,21 @@ function App() {
   }
 
   function navigate(nextView: ViewId) {
+    if (nextView === view && detailExerciseId === null) return
     setDetailExerciseId(null)
     setView(nextView)
+    pushViewLocation({ view: nextView, detailExerciseId: null })
+  }
+
+  function openDetail(exerciseId: string) {
+    setDetailExerciseId(exerciseId)
+    pushViewLocation({ view: 'overview', detailExerciseId: exerciseId })
+  }
+
+  function closeDetail() {
+    // Step back through browser history so the detail entry is popped and the
+    // Android hardware back button stays in sync with the in-app back control.
+    window.history.back()
   }
 
   function exportData() {
@@ -138,6 +195,7 @@ function App() {
     setState(buildInitialState())
     setDetailExerciseId(null)
     setView('today')
+    replaceViewLocation({ view: 'today', detailExerciseId: null })
   }
 
   return (
@@ -162,7 +220,7 @@ function App() {
             exercise={detailExercise}
             entries={state.entries}
             todayKey={todayKey}
-            onBack={() => setDetailExerciseId(null)}
+            onBack={closeDetail}
             onDeleteEntry={(entryId) =>
               persistWithUndo(deleteRepEntry(state, entryId), 'Registrering raderad')
             }
@@ -178,7 +236,7 @@ function App() {
               persistWithUndo(deleteRepEntry(state, entryId), 'Registrering raderad')
             }
             onUpdateEntry={(entryId, reps) => persist(updateRepEntry(state, entryId, reps))}
-            onOpenDetail={setDetailExerciseId}
+            onOpenDetail={openDetail}
           />
         ) : null}
 
